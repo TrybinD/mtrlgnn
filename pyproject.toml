@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=67", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "multitask-rl-gnn"
+version = "0.1.0"
+description = "multitask-rl-gnn"
+requires-python = ">=3.10"
+
+dependencies = [
+    "rl4co==0.5.2",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=8.0",
+    "black>=24.2",
+    "ruff>=0.3",
+    "pre-commit>=3.6",
+]
+notebooks = ["notebook>=7"]
+
+[project.scripts]
+train = "experiments.train:main"
+evaluate = "experiments.evaluate:main"
+
+[tool.pytest.ini_options]
+pythonpath = [
+   ".", "src",
+]
