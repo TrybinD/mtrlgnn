@@ -1,5 +1,5 @@
 from src.solvers.base import BaseSolver, BaseRLSolver
-from src.problems.vrp.tsp import TSPSolution, TSPProblem
+from src.problems.vrp.tsp import TSPSolution, TSP
 from rl4co.models import AttentionModelPolicy, POMO
 from rl4co.envs.routing import TSPEnv, TSPGenerator
 from rl4co.utils import RL4COTrainer
@@ -8,32 +8,35 @@ from tensordict.tensordict import TensorDict
 import random
 
 
-class TSPRandomSolver(BaseSolver, TSPProblem):
+class TSPRandomSolver(BaseSolver, TSP):
     def __init__(self, random_seed=None):
         self.random_seed = random_seed
 
     def solve(self, instance):
-        route = list(range(1, instance.num_cities))
+        tour = list(range(1, instance.num_cities))
         if self.random_seed is not None:
             random.seed(self.random_seed)
-        random.shuffle(route)
-        route = [0] + route + [0]
-        route = torch.tensor(route)
-        return TSPSolution(route)
+        random.shuffle(tour)
+        tour = [0] + tour + [0]
+        tour = torch.tensor(tour)
+        return TSPSolution(tour)
 
 
-class TSPAttentionModelSolver(BaseRLSolver, TSPProblem):
+class TSPAttentionModelSolver(BaseRLSolver, TSP):
     def __init__(
         self,
-        train_data_size=100000,
-        val_data_size=10000,
-        test_data_size=10000,
-        batch_size=64,
-        max_epochs=10,
-        accelerator="cpu",
-        lr=1e-4,
-        num_loc=20,
-        num_encoder_layers=1,
+        train_data_size: int = 100000,
+        val_data_size: int = 10000,
+        test_data_size: int = 10000,
+        batch_size: int = 64,
+        max_epochs: int = 10,
+        accelerator: str = "cpu",
+        lr: float = 1e-4,
+        num_loc: int = 20,
+        num_encoder_layers: int = 1,
+        embed_dim: int = 32,
+        num_heads: int = 2,
+        feedforward_hidden: int = 64,
     ):
         super().__init__(
             train_data_size,
@@ -47,8 +50,16 @@ class TSPAttentionModelSolver(BaseRLSolver, TSPProblem):
         self.save_hyperparameters()
         self.num_encoder_layers = num_encoder_layers
         self.num_loc = num_loc
+        self.embed_dim = embed_dim
+        self.num_heads = num_heads
+        self.feedforward_hidden = feedforward_hidden
 
-        self.policy = AttentionModelPolicy(num_encoder_layers=num_encoder_layers)
+        self.policy = AttentionModelPolicy(
+            num_encoder_layers=num_encoder_layers,
+            embed_dim=embed_dim,
+            num_heads=num_heads,
+            feedforward_hidden=feedforward_hidden,
+        )
 
     def fit(self):
         generator = TSPGenerator(num_loc=self.num_loc)
@@ -62,7 +73,9 @@ class TSPAttentionModelSolver(BaseRLSolver, TSPProblem):
             val_data_size=self.val_data_size,
             test_data_size=self.test_data_size,
         )
-        self.trainer = RL4COTrainer(max_epochs=self.max_epochs, accelerator=self.accelerator)
+        self.trainer = RL4COTrainer(
+            max_epochs=self.max_epochs, accelerator=self.accelerator
+        )
         self.trainer.fit(model)
 
     def solve(self, instance):
@@ -70,8 +83,8 @@ class TSPAttentionModelSolver(BaseRLSolver, TSPProblem):
         td = TSPEnv().reset(TensorDict({"locs": locs}), batch_size=[1])
         out = self.policy(td, phase="test", decode_type="greedy", return_actions=True)
         actions = out["actions"].cpu().detach()[0]
-        route = torch.concat([actions, actions[[0]]])
-        return TSPSolution(route)
+        tour = torch.concat([actions, actions[[0]]])
+        return TSPSolution(tour)
 
     @staticmethod
     def load_model(path):

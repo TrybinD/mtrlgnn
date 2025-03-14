@@ -46,9 +46,3 @@ class BaseRLSolver(BaseSolver, LightningModule):
             ckpt_files, key=lambda f: parse_checkpoint(f)
         )
         return os.path.join(checkpoint_dir, last_checkpoint)
-    
-    @staticmethod
-    @abstractmethod
-    def load_model(path: str) -> "BaseRLSolver":
-        """Loads model given path"""
-        pass

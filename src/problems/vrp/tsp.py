@@ -1,33 +1,35 @@
 from src.problems.vrp.base import BaseVRPInstance, BaseVRPSolution, BaseVRPGenerator
+from src.problems.base import BaseProblem
 import torch
 from torch import Tensor
 
 
-class TSPProblem:
+class TSP(BaseProblem):
     pass
 
 
-class TSPSolution(BaseVRPSolution, TSPProblem):
-    def __init__(self, route: Tensor):
+class TSPSolution(BaseVRPSolution, TSP):
+    def __init__(self, tour: Tensor):
         super().__init__()
-        self.route = route
+        self.tour = tour
 
 
-class TSPInstance(BaseVRPInstance, TSPProblem):
+class TSPInstance(BaseVRPInstance, TSP):
     def is_feasible(self, solution):
         cond = (
-            len(solution.route) - 1 == self.dist.shape[0],
-            len(torch.unique(solution.route)) == self.num_cities,
+            len(solution.tour) - 1 == self.num_cities,
+            len(torch.unique(solution.tour)) == self.num_cities,
+            set(solution.tour.tolist()) == set(range(self.num_cities)),
         )
         return all(cond)
 
     def total_cost(self, solution):
-        cost = self.dist[solution.route[1:], solution.route[:-1]]
-        cost = cost.sum()
+        cost = self.dist[solution.tour[1:], solution.tour[:-1]]
+        cost = cost.sum().item()
         return cost
 
 
-class TSP2DUniformGenerator(BaseVRPGenerator, TSPProblem):
+class TSP2DUniformGenerator(BaseVRPGenerator, TSP):
     def __init__(self, num_cities: int = 20, min_: int = 0, max_: int = 1, p: int = 2):
         assert min_ < max_
         self.num_cities = num_cities
