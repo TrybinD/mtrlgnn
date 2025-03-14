@@ -24,3 +24,7 @@ class BaseGenerator(ABC):
     @abstractmethod
     def sample(self, random_seed=None) -> BaseInstance:
         pass
+
+
+class BaseProblem:
+    pass

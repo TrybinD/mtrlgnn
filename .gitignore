@@ -1,0 +1,5 @@
+.vscode/*
+**/lightning_logs/*
+**/__pycache__/*
+**/tsplib95_data/*
+notebooks/.ipynb_checkpoints/**
