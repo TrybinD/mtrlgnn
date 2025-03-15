@@ -1,8 +1,7 @@
 from src.solvers.base import BaseSolver, BaseRLSolver
 from src.problems.vrp.tsp import TSPSolution, TSP
-from rl4co.models import AttentionModelPolicy, POMO
+from rl4co.models import AttentionModelPolicy
 from rl4co.envs.routing import TSPEnv, TSPGenerator
-from rl4co.utils import RL4COTrainer
 import torch
 from tensordict.tensordict import TensorDict
 import random
@@ -60,27 +59,12 @@ class TSPAttentionModelSolver(BaseRLSolver, TSP):
             num_heads=num_heads,
             feedforward_hidden=feedforward_hidden,
         )
-
-    def fit(self):
         generator = TSPGenerator(num_loc=self.num_loc)
-        env = TSPEnv(generator)
-        model = POMO(
-            env,
-            self.policy,
-            batch_size=self.batch_size,
-            optimizer_kwargs={"lr": self.lr},
-            train_data_size=self.train_data_size,
-            val_data_size=self.val_data_size,
-            test_data_size=self.test_data_size,
-        )
-        self.trainer = RL4COTrainer(
-            max_epochs=self.max_epochs, accelerator=self.accelerator
-        )
-        self.trainer.fit(model)
+        self.env = TSPEnv(generator)
 
     def solve(self, instance):
         locs = instance.locs[None, :, :]
-        td = TSPEnv().reset(TensorDict({"locs": locs}), batch_size=[1])
+        td = self.env.reset(TensorDict({"locs": locs}), batch_size=[1])
         out = self.policy(td, phase="test", decode_type="greedy", return_actions=True)
         actions = out["actions"].cpu().detach()[0]
         tour = torch.concat([actions, actions[[0]]])

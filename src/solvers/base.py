@@ -3,7 +3,10 @@ from src.problems.base import BaseInstance
 from src.problems.base import BaseSolution
 from src.utils import parse_checkpoint
 from pytorch_lightning import LightningModule, Trainer
+from rl4co.utils import RL4COTrainer
+from rl4co.models import POMO
 import os
+
 
 class BaseSolver(ABC):
     @abstractmethod
@@ -33,16 +36,25 @@ class BaseRLSolver(BaseSolver, LightningModule):
         self.lr = lr
         self.trainer: Trainer = None
 
-    @abstractmethod
     def fit(self):
-        pass
+        model = POMO(
+            self.env,
+            self.policy,
+            batch_size=self.batch_size,
+            optimizer_kwargs={"lr": self.lr},
+            train_data_size=self.train_data_size,
+            val_data_size=self.val_data_size,
+            test_data_size=self.test_data_size,
+        )
+        self.trainer = RL4COTrainer(
+            max_epochs=self.max_epochs, accelerator=self.accelerator
+        )
+        self.trainer.fit(model)
 
     def save_model(self):
         checkpoint_dir = os.path.join(self.trainer.logger.log_dir, "checkpoints")
         ckpt_files = [f for f in os.listdir(checkpoint_dir) if f.endswith(".ckpt")]
         if not ckpt_files:
             raise FileNotFoundError("No checkpoints found.")
-        last_checkpoint = max(
-            ckpt_files, key=lambda f: parse_checkpoint(f)
-        )
+        last_checkpoint = max(ckpt_files, key=lambda f: parse_checkpoint(f))
         return os.path.join(checkpoint_dir, last_checkpoint)
