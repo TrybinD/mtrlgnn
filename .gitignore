@@ -3,3 +3,7 @@
 **/__pycache__/*
 **/tsplib95_data/*
 notebooks/.ipynb_checkpoints/**
+.venv/
+*.egg-info/
+data/jsp/benchmarks
+notebooks/no_git/

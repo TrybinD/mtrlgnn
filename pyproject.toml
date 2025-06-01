@@ -11,6 +11,7 @@ dependencies = [
     "rl4co==0.5.2",
     "tsplib95==0.7.1",
     "pandas==2.2.2",
+    "ortools==9.11.4210"
 ]
 
 [project.optional-dependencies]
