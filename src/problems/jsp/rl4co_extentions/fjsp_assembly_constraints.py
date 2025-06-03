@@ -4,39 +4,17 @@ from rl4co.envs.scheduling.fjsp.generator import FJSPGenerator
 import torch
 
 class FJSPGeneratorWithGPM(FJSPGenerator):
-    """FJSP Generator with General Purpose Machine"""
 
-    def __init__(self, 
-                 num_jobs = 10, 
-                 num_machines = 5, 
-                 min_ops_per_job = 4, 
-                 max_ops_per_job = 6, 
-                 min_processing_time = 1, 
-                 max_processing_time = 20, 
-                 min_eligible_ma_per_op = 1, 
-                 max_eligible_ma_per_op = None, 
-                 same_mean_per_op = True, 
-                 **unused_kwargs):
-        
-        super().__init__(num_jobs, 
-                         num_machines, 
-                         min_ops_per_job, 
-                         max_ops_per_job, 
-                         min_processing_time, 
-                         max_processing_time, 
-                         min_eligible_ma_per_op, 
-                         max_eligible_ma_per_op, 
-                         same_mean_per_op, 
-                         **unused_kwargs)
+    def __init__(self, num_jobs = 10, num_machines = 5, min_ops_per_job = 4, max_ops_per_job = 6, min_processing_time = 1, max_processing_time = 20, min_eligible_ma_per_op = 1, max_eligible_ma_per_op = None, same_mean_per_op = True, **unused_kwargs):
+        super().__init__(num_jobs, num_machines, min_ops_per_job, max_ops_per_job, min_processing_time, max_processing_time, min_eligible_ma_per_op, max_eligible_ma_per_op, same_mean_per_op, **unused_kwargs)
 
     def _generate(self, batch_size):
+        
         td = super()._generate(batch_size)
 
         bs, n_machines, n_ops = td["proc_times"].shape
 
-        general_purpose_machine = torch.ones(size=(bs, 1, n_ops), 
-                                             dtype=td["proc_times"].dtype, 
-                                             device=td["proc_times"].device) * self.max_processing_time
+        general_purpose_machine = torch.ones(size=(bs, 1, n_ops), dtype=td["proc_times"].dtype, device=td["proc_times"].device) * self.max_processing_time
 
         td["proc_times"] = torch.cat([td["proc_times"], general_purpose_machine], dim=1)
 
@@ -44,24 +22,38 @@ class FJSPGeneratorWithGPM(FJSPGenerator):
 
         
 class FJSPEnvMOPM(FJSPEnv):
-    """FJSP with Maximum Operation Per Machine"""
     def __init__(self, generator_params = ..., check_mask = False, stepwise_reward = False, **kwargs):
 
         generator_params = {**generator_params}
-        self.max_ops_processed = generator_params.pop("max_ops_processed")
+        self.max_ops_limit = generator_params.pop("max_ops_limit")
+        self.min_ops_limit = generator_params.pop("min_ops_limit")
 
         generator = FJSPGeneratorWithGPM(**generator_params)
 
         super().__init__(generator=generator, mask_no_ops=True, check_mask=check_mask, stepwise_reward=stepwise_reward, **kwargs)
 
     def _reset(self, td = None, batch_size=None):
-        td = super()._reset(td, batch_size)
 
-        ma_ops_processed_left = torch.ones_like(td["busy_until"]) * self.max_ops_processed
+        if not td:
+            td = super()._reset(td, batch_size)
 
-        td["ma_ops_processed_left"] = ma_ops_processed_left
+            ma_ops_processed_left = torch.randint_like(td["busy_until"], 
+                                                    low=self.min_ops_limit, 
+                                                    high=self.max_ops_limit)
 
-        td["ma_ops_processed_left"][:, -1] = 1e6
+            td["ma_ops_processed_left"] = ma_ops_processed_left
+
+            td["ma_ops_processed_left"][:, -1] = 100
+
+        else:
+            
+            ma_ops_processed_left = td["ma_ops_processed_left"]
+
+            td = super()._reset(td, batch_size)
+
+            td["ma_ops_processed_left"] = ma_ops_processed_left
+
+            td["ma_ops_processed_left"][:, -1] = 100
 
         return td.to(self.device)
     
@@ -107,20 +99,37 @@ class FJSPEnvMTPM(FJSPEnv):
     def __init__(self, generator_params = ..., check_mask = False, stepwise_reward = False, **kwargs):
 
         generator_params = {**generator_params}
+
         self.max_time_worked = generator_params.pop("max_time_worked")
+        self.min_time_worked = generator_params.pop("min_time_worked")
 
         generator = FJSPGeneratorWithGPM(**generator_params)
 
         super().__init__(generator=generator, mask_no_ops=True, check_mask=check_mask, stepwise_reward=stepwise_reward, **kwargs)
 
     def _reset(self, td = None, batch_size=None):
-        td = super()._reset(td, batch_size)
 
-        ma_time_left = torch.ones_like(td["busy_until"]) * self.max_time_worked
+        if not td:
 
-        td["ma_time_left"] = ma_time_left
+            td = super()._reset(td, batch_size)
 
-        td["ma_time_left"][:, -1] = 1e6
+            ma_time_left = torch.randint_like(td["busy_until"], 
+                                              low=self.max_time_worked, 
+                                              high=self.min_time_worked)
+
+            td["ma_time_left"] = ma_time_left
+
+            td["ma_time_left"][:, -1] = 10_000
+
+        else:
+
+            ma_time_left = td["ma_time_left"]
+
+            td = super()._reset(td, batch_size)
+
+            td["ma_time_left"] = ma_time_left
+
+            td["ma_time_left"][:, -1] = 10_000
 
         return td.to(self.device)
     

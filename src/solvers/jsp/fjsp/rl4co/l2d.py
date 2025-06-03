@@ -45,7 +45,6 @@ class FJSPL2DSolver(BaseRLSolver, FJSP):
 
     def fit(self, fjsp_env_params: Dict):
 
-
         env = FJSPEnv(**fjsp_env_params)
 
         model = L2DModel(env,
