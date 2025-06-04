@@ -5,7 +5,12 @@ from src.problems.jsp.fjsp import FJSP, FJSPInstance, FJSPSolution, FJSPFileGene
 
 
 class FJSPBenchmarksDataset(BaseDataset, FJSP):
-    def __init__(self, file_pattern: str):
+    def __init__(self, file_pattern: Optional[str] = None):
+
+        if file_pattern is None:
+            file_pattern = "data/jsp/Brandimarte/*.fjs"
+
+            print(Path().cwd())
 
         self.files_list = list(Path().glob(file_pattern))
 
